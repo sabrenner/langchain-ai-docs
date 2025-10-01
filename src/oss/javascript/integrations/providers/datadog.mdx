@@ -1,0 +1,143 @@
+---
+title: Datadog LLM Observability
+---
+## What is Datadog LLM Observability?
+
+Datadog LLM Observability provides end-to-end tracing of LLM chains and agentic systems with visibility into input-output, errors, latency, and token usage, along with robust quality and security evaluations at each step—including data retrieval, tool calls, and agent-to-agent interactions. By seamlessly correlating LLM traces with APM and utilizing cluster visualization to identify drifts, Datadog LLM Observability enables you to swiftly resolve issues and confidently scale AI applications in production, all while ensuring accuracy, safety, and cost-efficiency.
+
+## Installation and Setup
+
+1. [Create a Datadog trial account](https://www.datadoghq.com/) if you do not have one.
+
+2. [Create a Datadog API key](https://docs.datadoghq.com/account_management/api-app-keys/#api-keys) if you do not have one.
+
+3. Install the `dd-trace` package
+
+<CodeGroup>
+```shell npm
+npm install dd-trace
+```
+
+```shell pnpm
+pnpm add dd-trace
+```
+
+```shell yarn
+yarn add dd-trace
+```
+</CodeGroup>
+
+4. Set up the appropriate environment variables. You will also need to specify an ML Application name in the following environment variables. An ML Application is a grouping of LLM Observability traces associated with a specific LLM-based application, separate from the service it is part of. See [ML Application Naming Guidelines](https://docs.datadoghq.com/llm_observability/instrumentation/sdk?tab=python#application-naming-guidelines) for more information on limitations with ML Application names.
+
+```shell
+export DD_API_KEY=<YOUR_DD_API_KEY>
+export DD_SITE=<YOUR_DD_SITE>
+export DD_LLMOBS_ENABLED=true
+export DD_LLMOBS_ML_APP=<YOUR_ML_APP_NAME>
+export DD_LLMOBS_AGENTLESS_ENABLED=true
+```
+Additionally, configure any LLM provider API keys
+
+```shell
+export OPENAI_API_KEY=<YOUR_OPENAI_API_KEY>
+export ANTHROPIC_API_KEY=<YOUR_ANTHROPIC_API_KEY>
+export GEMINI_API_KEY=<YOUR_GEMINI_API_KEY>
+...
+```
+
+## Running Your Application
+
+To run your application with Datadog LLM Observability auto-instrumentation, you can use the `ddtrace-run` command:
+
+```shell
+node --import dd-trace/initialize.mjs <your-app>.js
+```
+
+Alternatively, you can initialize LLM Observability in-code, in which case make sure that the enablement happens first in your application code:
+
+```javascript
+import tracer from "dd-trace";
+tracer.init({
+    llmobs: {
+        mlApp: "<YOUR_ML_APP_NAME>",
+        agentlessEnabled: true
+    },
+    site: "<YOUR_DD_SITE>"
+});
+
+// NOTE: Your API key must be set in the application environment variables
+
+// ... your application code ...
+```
+
+## Supported Operations for Observability
+
+Datadog's JavaScript LLM Observability support for LangChain includes:
+
+- LLM [invocations](/oss/langchain/models#invoke)
+- Chat model [invocations](/oss/langchain/models#invoke)
+- Chain/RunnableSequence invocations
+- Embedding [invocations](/oss/langchain/knowledge-base#embeddings)
+- Tool [invocations](/oss/langchain/models#tool-calling)
+- Vectorstore [invocations](/oss/langchain/knowledge-base#vector-stores)
+
+## LangChain Example
+
+Using the following LangChain libraries:
+
+<CodeGroup>
+```bash
+npm install @langchain/core @langchain/openai
+```
+
+```bash
+pnpm add @langchain/core @langchain/openai
+```
+
+```bash
+yarn add @langchain/core @langchain/openai
+```
+</CodeGroup>
+
+And the following `index.mjs` file:
+
+```javascript
+import { ChatPromptTemplate } from '@langchain/core/prompts'
+import { ChatOpenAI } from '@langchain/openai'
+import { StringOutputParser } from '@langchain/core/output_parsers'
+import { RunnableSequence } from '@langchain/core/runnables'
+
+const firstPrompt = ChatPromptTemplate.fromTemplate('what is the city {person} is from?')
+const secondPrompt = ChatPromptTemplate.fromTemplate(
+  'what country is the city {city} in? respond in {language}'
+)
+
+const model = new ChatOpenAI({ model: 'gpt-3.5-turbo' })
+const parser = new StringOutputParser()
+
+const firstChain = firstPrompt.pipe(model).pipe(parser)
+const secondChain = secondPrompt.pipe(model).pipe(parser)
+
+const completeChain = RunnableSequence.from([
+  {
+    city: firstChain,
+    language: input => input.language
+  },
+  secondChain
+])
+
+const result = await completeChain.invoke({ person: 'Abraham Lincoln', language: 'Spanish' })
+console.log(result)
+```
+
+Running the application with the specified [environment variables](#installation-and-setup) will yield the following trace:
+
+![Datadog LLM Observability trace](/oss/images/datadog-llm-observability-span-view-javascript.png)
+
+LLM Observability traces are available in [Datadog LLM Observability's Traces View](https://app.datadoghq.com/llm/traces), by selecting the ML Application name you chose from the top-left dropdown.
+
+Clicking on a trace will show you the details of the trace, including total tokens used, number of LLM calls, models used, and estimated cost. Clicking into a specific span will narrow down these details, and show related input, output, and metadata.
+
+## Troubleshooting
+
+Need help? Contact [Datadog support](https://docs.datadoghq.com/help/).

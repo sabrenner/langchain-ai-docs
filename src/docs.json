@@ -1346,6 +1346,12 @@
                         ]
                       }
                     ]
+                  },
+                  {
+                    "group": "Observability Integrations",
+                    "pages": [
+                      "oss/javascript/integrations/providers/datadog"
+                    ]
                   }
                 ]
               },
