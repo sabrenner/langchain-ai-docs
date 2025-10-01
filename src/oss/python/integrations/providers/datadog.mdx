@@ -1,96 +1,87 @@
 ---
-title: Datadog Tracing
+title: Datadog LLM Observability
 ---
 
->[ddtrace](https://github.com/DataDog/dd-trace-py) is a Datadog application performance monitoring (APM) library which provides an integration to monitor your LangChain application.
+<Warning>
+For compatibility with v1.0 of LangChain, please use `ddtrace>=3.16.0`.
+</Warning>
 
-Key features of the ddtrace integration for LangChain:
-- Traces: Capture LangChain requests, parameters, prompt-completions, and help visualize LangChain operations.
-- Metrics: Capture LangChain request latency, errors, and token/cost usage (for OpenAI LLMs and chat models).
-- Logs: Store prompt completion data for each LangChain operation.
-- Dashboard: Combine metrics, logs, and trace data into a single plane to monitor LangChain requests.
-- Monitors: Provide alerts in response to spikes in LangChain request latency or error rate.
+## What is Datadog LLM Observability?
 
-Note: The ddtrace LangChain integration currently provides tracing for LLMs, chat models, Text Embedding Models, Chains, and Vectorstores.
+Datadog LLM Observability provides end-to-end tracing of LLM chains and agentic systems with visibility into input-output, errors, latency, and token usage, along with robust quality and security evaluations at each step—including data retrieval, tool calls, and agent-to-agent interactions. By seamlessly correlating LLM traces with APM and utilizing cluster visualization to identify drifts, Datadog LLM Observability enables you to swiftly resolve issues and confidently scale AI applications in production, all while ensuring accuracy, safety, and cost-efficiency.
 
 ## Installation and Setup
 
-1. Enable APM and StatsD in your Datadog Agent, along with a Datadog API key. For example, in Docker:
+1. [Create a Datadog trial account](https://www.datadoghq.com/) if you do not have one.
 
-```
-docker run -d --cgroupns host \
-              --pid host \
-              -v /var/run/docker.sock:/var/run/docker.sock:ro \
-              -v /proc/:/host/proc/:ro \
-              -v /sys/fs/cgroup/:/host/sys/fs/cgroup:ro \
-              -e DD_API_KEY=<DATADOG_API_KEY> \
-              -p 127.0.0.1:8126:8126/tcp \
-              -p 127.0.0.1:8125:8125/udp \
-              -e DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true \
-              -e DD_APM_ENABLED=true \
-              gcr.io/datadoghq/agent:latest
-```
+2. [Create a Datadog API key](https://docs.datadoghq.com/account_management/api-app-keys/#api-keys) if you do not have one.
 
-2. Install the Datadog APM Python library.
+3. Install the `ddtrace` package
 
 <CodeGroup>
 ```shell pip
-pip install "ddtrace>=1.17"
+pip install "ddtrace"
 ```
 
 ```shell uv
-uv add "ddtrace>=1.17"
+uv add "ddtrace"
 ```
 </CodeGroup>
 
+4. Set up the appropriate environment variables. You will also need to specify an ML Application name in the following environment variables. An ML Application is a grouping of LLM Observability traces associated with a specific LLM-based application, separate from the service it is part of. See [ML Application Naming Guidelines](https://docs.datadoghq.com/llm_observability/instrumentation/sdk?tab=python#application-naming-guidelines) for more information on limitations with ML Application names.
 
-3. The LangChain integration can be enabled automatically when you prefix your LangChain Python application command with `ddtrace-run`:
-
+```shell
+export DD_API_KEY=<YOUR_DD_API_KEY>
+export DD_SITE=<YOUR_DD_SITE>
+export DD_LLMOBS_ENABLED=true
+export DD_LLMOBS_ML_APP=<YOUR_ML_APP_NAME>
+export DD_LLMOBS_AGENTLESS_ENABLED=true
+export DD_APM_TRACING_ENABLED=false
 ```
-DD_SERVICE="my-service" DD_ENV="staging" DD_API_KEY=<DATADOG_API_KEY> ddtrace-run python <your-app>.py
+Additionally, configure any LLM provider API keys
+
+```shell
+export OPENAI_API_KEY=<YOUR_OPENAI_API_KEY>
+export ANTHROPIC_API_KEY=<YOUR_ANTHROPIC_API_KEY>
+export GEMINI_API_KEY=<YOUR_GEMINI_API_KEY>
+...
 ```
 
-**Note**: If the Agent is using a non-default hostname or port, be sure to also set `DD_AGENT_HOST`, `DD_TRACE_AGENT_PORT`, or `DD_DOGSTATSD_PORT`.
+## Running Your Application
 
-Additionally, the LangChain integration can be enabled programmatically by adding `patch_all()` or `patch(langchain=True)` before the first import of `langchain` in your application.
+To run your application with Datadog LLM Observability auto-instrumentation, you can use the `ddtrace-run` command:
 
-Note that using `ddtrace-run` or `patch_all()` will also enable the `requests` and `aiohttp` integrations which trace HTTP requests to LLM providers, as well as the `openai` integration which traces requests to the OpenAI library.
+```shell
+ddtrace-run python <your-app>.py
+```
+
+Alternatively, you can initialize LLM Observability in-code, in which case make sure that the enablement happens first in your application code:
 
 ```python
-from ddtrace import config, patch
+from ddtrace.llmobs import LLMObs
 
-# Note: be sure to configure the integration before calling `patch()`!
-# e.g. config.langchain["logs_enabled"] = True
+LLMObs.enable(
+    ml_app="<YOUR_ML_APP_NAME>",
+    agentless_enabled=True,
+    api_key="<YOUR_DD_API_KEY>",
+    site="<YOUR_DD_SITE>",
+)
 
-patch(langchain=True)
-
-# to trace synchronous HTTP requests
-# patch(langchain=True, requests=True)
-
-# to trace asynchronous HTTP requests (to the OpenAI library)
-# patch(langchain=True, aiohttp=True)
-
-# to include underlying OpenAI spans from the OpenAI integration
-# patch(langchain=True, openai=True)patch_all
+# ... your application code ...
 ```
 
-See the [APM Python library documentation](https://ddtrace.readthedocs.io/en/stable/installation_quickstart.html) for more advanced usage.
+## LLM and Multi-Agent Monitoring Example
 
+Running the multi-agent example documented in [multi-agent-collaboration.ipynb](https://github.com/langchain-ai/langgraph/blob/main/docs/docs/tutorials/multi_agent/multi-agent-collaboration.ipynb) will yield the following trace:
 
-## Configuration
+![MCP](/oss/images/datadog-llm-observability-execution-graph.png)
 
-See the [APM Python library documentation](https://ddtrace.readthedocs.io/en/stable/integrations.html#langchain) for all the available configuration options.
+LLM Observability traces are available in [Datadog LLM Observability's Traces View](https://app.datadoghq.com/llm/traces), by selecting the ML Application name you chose from the top-left dropdown.
 
+Clicking on a trace will show you the details of the trace, including total tokens used, number of LLM calls, models used, and estimated cost. Clicking into a specific span will narrow down these details, and show related input, output, and metadata.
 
-### Log Prompt & Completion Sampling
-
-To enable log prompt and completion sampling, set the `DD_LANGCHAIN_LOGS_ENABLED=1` environment variable. By default, 10% of traced requests will emit logs containing the prompts and completions.
-
-To adjust the log sample rate, see the [APM library documentation](https://ddtrace.readthedocs.io/en/stable/integrations.html#langchain).
-
-**Note**: Logs submission requires `DD_API_KEY` to be specified when running `ddtrace-run`.
-
+Additionally, you can view the execution graph view of the trace, which shows the control and data flow of the trace, which will scale with larger agents to show handoffs and relationships between LLM calls, tool calls, and agent interactions.
 
 ## Troubleshooting
 
-Need help? Create an issue on [ddtrace](https://github.com/DataDog/dd-trace-py) or contact [Datadog support](https://docs.datadoghq.com/help/).
+Need help? Contact [Datadog support](https://docs.datadoghq.com/help/).
