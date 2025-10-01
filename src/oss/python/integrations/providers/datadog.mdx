@@ -70,17 +70,34 @@ LLMObs.enable(
 # ... your application code ...
 ```
 
+## Supported LangChain and LangGraph Operations for LLM Observability
+
+Datadog's Python LLM Observability support for LangChain includes:
+
+- LLM [invocations](/oss/langchain/models#invoke) and [streaming](/oss/langchain/models#stream)
+- Chat model [invocations](/oss/langchain/models#invoke) and [streaming](/oss/langchain/models#stream)
+- Chain/RunnableSequence invocations and streaming
+- Embedding [invocations](/oss/langchain/knowledge-base#embeddings)
+- Tool [invocations](/oss/langchain/models#tool-calling)
+- Vectorstore [invocations](/oss/langchain/knowledge-base#vector-stores)
+
+Datadog's Python LLM Observability support for LangGraph includes:
+
+- Compiled graph [invocations](/oss/langgraph/workflows-agents) and [streaming](/oss/langgraph/streaming)
+- Graph node [invocations](/oss/langgraph/workflows-agents) and [streaming](/oss/langgraph/streaming)
+
+
 ## LLM and Multi-Agent Monitoring Example
 
 Running the multi-agent example documented in [multi-agent-collaboration.ipynb](https://github.com/langchain-ai/langgraph/blob/main/docs/docs/tutorials/multi_agent/multi-agent-collaboration.ipynb) will yield the following trace:
 
-![MCP](/oss/images/datadog-llm-observability-execution-graph.png)
+![MCP](/oss/images/datadog-llm-observability-execution-graph-python.png)
 
 LLM Observability traces are available in [Datadog LLM Observability's Traces View](https://app.datadoghq.com/llm/traces), by selecting the ML Application name you chose from the top-left dropdown.
 
 Clicking on a trace will show you the details of the trace, including total tokens used, number of LLM calls, models used, and estimated cost. Clicking into a specific span will narrow down these details, and show related input, output, and metadata.
 
-Additionally, you can view the execution graph view of the trace, which shows the control and data flow of the trace, which will scale with larger agents to show handoffs and relationships between LLM calls, tool calls, and agent interactions.
+Additionally, you can view the execution graph view of the trace for LangGraph applications, which shows the control and data flow of the trace, which will scale with larger agents to show handoffs and relationships between LLM calls, tool calls, and agent interactions.
 
 ## Troubleshooting
 
